@@ -11,6 +11,7 @@ import java.util.UUID;
 public class SeamlessReconnect extends JavaPlugin {
 
     public final Set<Integer> delayRemovalPacket = new HashSet<>();
+    public final Set<UUID> reconnectingPlayers = new HashSet<>();
 
     @Override
     public void onEnable() {
@@ -34,8 +35,12 @@ public class SeamlessReconnect extends JavaPlugin {
             String[] split = message.split("\t");
             UUID uuid = UUID.fromString(split[0]);
             int entityId = Integer.parseInt(split[1]);
+            reconnectingPlayers.add(uuid);
             delayRemovalPacket.add(entityId);
-            runLater(() -> delayRemovalPacket.remove(entityId), 20);
+            runLater(() -> {
+                reconnectingPlayers.remove(uuid);
+                delayRemovalPacket.remove(entityId);
+            }, 50);
         }
     }
 }

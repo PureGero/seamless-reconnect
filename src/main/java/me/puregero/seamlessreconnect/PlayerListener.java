@@ -1,5 +1,6 @@
 package me.puregero.seamlessreconnect;
 
+import com.github.puregero.multilib.MultiLib;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -28,10 +29,11 @@ public class PlayerListener implements Listener {
     // On a player kick when they are being sent to another server, send necessary packets to prevent glitches
     @EventHandler
     public void onPlayerKick(PlayerKickEvent event) {
+        Player player = event.getPlayer();
         if (PlainTextComponentSerializer.plainText().serialize(event.reason()).toLowerCase(Locale.ROOT).startsWith("sendto:")) {
-            Player player = event.getPlayer();
-            PacketListener packetListener = (PacketListener) ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get("seamlessreconnect");
-            packetListener.sendDismount();
+            plugin.broadcast("reconnecting", player.getUniqueId() + "\t" + player.getEntityId());
+            PacketListener packetListener = ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get(PacketListener.class);
+//            packetListener.sendDismount();
         }
     }
 }

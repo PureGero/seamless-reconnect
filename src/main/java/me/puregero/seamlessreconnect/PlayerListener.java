@@ -44,7 +44,6 @@ public class PlayerListener implements Listener {
         if (PlainTextComponentSerializer.plainText().serialize(event.reason()).toLowerCase(Locale.ROOT).startsWith("sendto:")) {
             plugin.broadcast("reconnecting", player.getUniqueId() + "\t" + player.getEntityId());
             PacketListener packetListener = ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get(PacketListener.class);
-//            packetListener.sendDismount();
         }
     }
 }

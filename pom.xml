@@ -42,11 +42,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.jetbrains</groupId>
-            <artifactId>annotations</artifactId>
-            <version>22.0.0</version>
-        </dependency>
-        <dependency>
             <groupId>puregero.multipaper</groupId>
             <artifactId>multipaper-api</artifactId>
             <version>${spigot.version}</version>

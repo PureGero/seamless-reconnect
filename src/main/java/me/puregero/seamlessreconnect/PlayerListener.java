@@ -5,14 +5,14 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-
-import java.util.Locale;
+import org.bukkit.event.vehicle.VehicleEnterEvent;
 
 public class PlayerListener implements Listener {
     private final SeamlessReconnect plugin;
@@ -50,5 +50,23 @@ public class PlayerListener implements Listener {
             plugin.broadcast("reconnecting", player.getUniqueId() + "\t" + player.getEntityId());
             PacketListener packetListener = ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get(PacketListener.class);
         }
+    }
+
+    @EventHandler
+    public void onVehicleMount(VehicleEnterEvent event) {
+        if (event.getEntered() instanceof Player player && containsPlayer(event.getVehicle())) {
+            player.sendActionBar(Component.text("Only one player can use a boat at a time (sorry!!)").color(NamedTextColor.RED));
+            event.setCancelled(true);
+        }
+    }
+
+    private boolean containsPlayer(Entity entity) {
+        for (Entity passenger : entity.getPassengers()) {
+            if (passenger instanceof Player || containsPlayer(passenger)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

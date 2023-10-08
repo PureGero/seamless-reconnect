@@ -160,13 +160,13 @@ public class ServerAllocationSystem {
             }
         }
 
-        if (MultiLib.getLocalServerName().equals("server1")) {
-            centerX = 500;
-            centerZ = 0;
-        } else if (MultiLib.getLocalServerName().equals("server2")) {
-            centerX = -500;
-            centerZ = 0;
-        }
+//        if (MultiLib.getLocalServerName().equals("server1")) {
+//            centerX = 500;
+//            centerZ = 0;
+//        } else if (MultiLib.getLocalServerName().equals("server2")) {
+//            centerX = -500;
+//            centerZ = 0;
+//        }
 
         plugin.getLogger().info(ourIndex + ": Center is " + centerX + ", " + centerZ);
 

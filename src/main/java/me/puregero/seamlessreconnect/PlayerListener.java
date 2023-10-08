@@ -1,5 +1,8 @@
 package me.puregero.seamlessreconnect;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -41,7 +44,9 @@ public class PlayerListener implements Listener {
     @EventHandler
     public void onPlayerKick(PlayerKickEvent event) {
         Player player = event.getPlayer();
-        if (PlainTextComponentSerializer.plainText().serialize(event.reason()).toLowerCase(Locale.ROOT).startsWith("sendto:")) {
+        String message = PlainTextComponentSerializer.plainText().serialize(event.reason());
+        if (message.startsWith("sendto:")) {
+            player.sendActionBar(Component.text("Connecting to " + message.split("sendto:")[1] + "...").color(NamedTextColor.GRAY).decorate(TextDecoration.ITALIC));
             plugin.broadcast("reconnecting", player.getUniqueId() + "\t" + player.getEntityId());
             PacketListener packetListener = ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get(PacketListener.class);
         }

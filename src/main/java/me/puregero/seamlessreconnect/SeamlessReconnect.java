@@ -16,7 +16,10 @@ public class SeamlessReconnect extends JavaPlugin {
     @Override
     public void onEnable() {
         new PlayerListener(this);
-        new ServerAllocationSystem(this);
+
+        if (Boolean.parseBoolean(System.getProperty("sr.enabled", "true"))) {
+            new ServerAllocationSystem(this);
+        }
 
         MultiLib.onString(this, "seamlessreconnect:reconnecting", message -> handleNotification("reconnecting", message));
     }

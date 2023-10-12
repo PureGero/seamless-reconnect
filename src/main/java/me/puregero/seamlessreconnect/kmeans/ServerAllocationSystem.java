@@ -309,28 +309,28 @@ public class ServerAllocationSystem {
 
     private void movePlayers(List<LocalPlayerLocation> localPlayersToMove, int recursion, int maxRecursion) {
         // Move the player that's closest to their newly assigned server
-        double closestDistance = Double.MAX_VALUE;
-        LocalPlayerLocation closestPlayer = null;
-        Player closestBukkitPlayer = null;
+        double furthestDistance = Double.MIN_VALUE;
+        LocalPlayerLocation furthestPlayer = null;
+        Player furthestBukkitPlayer = null;
 
         // First find a server to send them to with less players than us
         for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
             Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-            if (calcDistanceFromUs(localPlayerLocation) < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer()) && hasLessPlayers(localPlayerLocation.closestServer())) {
-                closestDistance = calcDistanceFromUs(localPlayerLocation);
-                closestPlayer = localPlayerLocation;
-                closestBukkitPlayer = player;
+            if (calcDistanceFromUs(localPlayerLocation) > furthestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer()) && hasLessPlayers(localPlayerLocation.closestServer())) {
+                furthestDistance = calcDistanceFromUs(localPlayerLocation);
+                furthestPlayer = localPlayerLocation;
+                furthestBukkitPlayer = player;
             }
         }
 
         // Then try sending players to fuller servers
-        if (closestPlayer == null) {
+        if (furthestPlayer == null) {
             for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
                 Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-                if (calcDistanceFromUs(localPlayerLocation) < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer())) {
-                    closestDistance = calcDistanceFromUs(localPlayerLocation);
-                    closestPlayer = localPlayerLocation;
-                    closestBukkitPlayer = player;
+                if (calcDistanceFromUs(localPlayerLocation) > furthestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer())) {
+                    furthestDistance = calcDistanceFromUs(localPlayerLocation);
+                    furthestPlayer = localPlayerLocation;
+                    furthestBukkitPlayer = player;
                 }
             }
         }
@@ -357,8 +357,8 @@ public class ServerAllocationSystem {
 //            }
 //        }
 
-        if (closestBukkitPlayer != null) {
-            closestBukkitPlayer.kick(Component.text("sendto:" + closestPlayer.closestServer()));
+        if (furthestBukkitPlayer != null) {
+            furthestBukkitPlayer.kick(Component.text("sendto:" + furthestPlayer.closestServer()));
 
             if (recursion < maxRecursion) {
                 movePlayers(localPlayersToMove, recursion + 1, maxRecursion);

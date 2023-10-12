@@ -79,7 +79,7 @@ public class ServerAllocationSystem_EqualPlayerCounts {
                     playerLocations.remove(closest);
 
                     if (closest instanceof LocalPlayerLocation localPlayerLocation && !server.serverName().equals(MultiLib.getLocalServerName())) {
-                        localPlayerLocation.assignedServer(server.serverName());
+                        localPlayerLocation.closestServer(server.serverName());
                         localPlayersToMove.add(localPlayerLocation);
                     }
                 }
@@ -133,8 +133,8 @@ public class ServerAllocationSystem_EqualPlayerCounts {
         // Move a player already in the external chunk
         for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
             Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-            if (player != null && MultiLib.isLocalPlayer(player) && MultiLib.isChunkExternal(player) && hasLessPlayers(localPlayerLocation.assignedServer())) {
-                String serverName = localPlayerLocation.assignedServer();
+            if (player != null && MultiLib.isLocalPlayer(player) && MultiLib.isChunkExternal(player) && hasLessPlayers(localPlayerLocation.closestServer())) {
+                String serverName = localPlayerLocation.closestServer();
                 player.kick(Component.text("sendto:" + serverName));
                 return;
             }
@@ -143,8 +143,8 @@ public class ServerAllocationSystem_EqualPlayerCounts {
         // Otherwise, just move a player
         for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
             Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-            if (player != null && MultiLib.isLocalPlayer(player) && hasLessPlayers(localPlayerLocation.assignedServer())) {
-                String serverName = localPlayerLocation.assignedServer();
+            if (player != null && MultiLib.isLocalPlayer(player) && hasLessPlayers(localPlayerLocation.closestServer())) {
+                String serverName = localPlayerLocation.closestServer();
                 player.kick(Component.text("sendto:" + serverName));
                 return;
             }

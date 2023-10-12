@@ -18,7 +18,7 @@ public class SetUpdateRate extends Command {
 
     @Override
     public boolean execute(@NotNull CommandSender sender, @NotNull String commandLabel, @NotNull String[] args) {
-        if (!sender.hasPermission("seamlessreconnect.debug")) {
+        if (!sender.hasPermission("seamlessreconnect.srsetupdaterate")) {
             sender.sendMessage(Component.text("You do not have permission to use this command.").color(NamedTextColor.RED));
             return false;
         }

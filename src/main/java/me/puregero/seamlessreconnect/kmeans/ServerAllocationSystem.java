@@ -6,6 +6,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
+import puregero.multipaper.MultiPaper;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -19,22 +20,26 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 
 public class ServerAllocationSystem {
 
     private static final String CHANNEL = "kmeans:update";
     private static final String CHANNEL_UPDATE_RATE = "kmeans:set_update_rate";
+    private static final String CHANNEL_CENTROID_METHOD = "kmeans:set_centroid_method";
 
     private final SeamlessReconnect plugin;
     final Map<String, UpdatePacket> servers = new ConcurrentHashMap<>();
     private int updateRate = 2 * 20;
     private BukkitTask updateTask = null;
+    private CentroidMethod centroidMethod = CentroidMethod.DISTRIBUTED;
 
     int centerX = (int) (Math.random() * 1000) - 500;
     int centerZ = (int) (Math.random() * 1000) - 500;
@@ -51,9 +56,11 @@ public class ServerAllocationSystem {
         });
 
         MultiLib.onString(plugin, CHANNEL_UPDATE_RATE, str -> handleSetUpdateRate(Integer.parseInt(str)));
+        MultiLib.onString(plugin, CHANNEL_CENTROID_METHOD, this::handleSetCentroidMethod);
 
         this.plugin.getServer().getCommandMap().register("seamlessreconnect", new DebugCommand(this));
         this.plugin.getServer().getCommandMap().register("seamlessreconnect", new SetUpdateRate(this));
+        this.plugin.getServer().getCommandMap().register("seamlessreconnect", new SetCentroidMethod(this));
 
         handleSetUpdateRate(updateRate);
 
@@ -99,6 +106,19 @@ public class ServerAllocationSystem {
         }
 
         updateTask = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, this::tick, updateRate);
+    }
+
+    public void setCentroidMethod(String method) {
+        MultiLib.notify(CHANNEL_CENTROID_METHOD, method);
+        handleSetCentroidMethod(method);
+    }
+
+    private void handleSetCentroidMethod(String method) {
+        try {
+            centroidMethod = CentroidMethod.valueOf(method.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException e) {
+            plugin.getLogger().log(Level.WARNING, "Tried to set centroidMethod to an unknown method of: " + method, e);
+        }
     }
 
     private PriorityQueue<DistancePlayerLocation> calculateClosestServers(Collection<DistancePlayerLocation> players, String serverToRecalculate, Collection<UpdatePacket> servers) {
@@ -169,26 +189,33 @@ public class ServerAllocationSystem {
             }
         });
 
+        int ourIndex = 0;
+        for (String serverName : serverList.keySet()) {
+            if (serverName.equals(MultiLib.getLocalServerName())) {
+                break;
+            }
+            ourIndex++;
+        }
+
+        Centroid centroid = centroidMethod.updateBeforeAssignment(playerLocations, serverList.values(), new Centroid(centerX, centerZ), ourIndex);
+        if (centroid != null) {
+            centerX = centroid.x();
+            centerZ = centroid.z();
+        }
+
         assignPlayersToServers(playerLocations, serverList.values());
 
-        int totalX = 0;
-        int totalZ = 0;
-        int count = 0;
+        Centroid centroid2 = centroidMethod.updateAfterAssignment(playerLocations, serverList.values(), new Centroid(centerX, centerZ), ourIndex);
+        if (centroid2 != null) {
+            centerX = centroid2.x();
+            centerZ = centroid2.z();
+        }
+
         List<LocalPlayerLocation> localPlayersToMove = new ArrayList<>();
         for (DistancePlayerLocation playerLocation : playerLocations) {
             if (playerLocation instanceof LocalPlayerLocation localPlayerLocation && !localPlayerLocation.closestServer().equals(MultiLib.getLocalServerName())) {
                 localPlayersToMove.add(localPlayerLocation);
             }
-            if (playerLocation.closestServer().equals(MultiLib.getLocalServerName())) {
-                totalX += playerLocation.x();
-                totalZ += playerLocation.z();
-                count += 1;
-            }
-        }
-
-        if (count > 0) {
-            centerX = totalX / count;
-            centerZ = totalZ / count;
         }
 
         plugin.getLogger().info("Center is " + centerX + ", " + centerZ);
@@ -221,6 +248,25 @@ public class ServerAllocationSystem {
     }
 
     private void movePlayers(List<LocalPlayerLocation> localPlayersToMove) {
+        int maxRecursion = 0;
+
+        List<Integer> playerCounts = servers.values().stream()
+                .filter(server -> MultiPaper.getConnection().getOrCreateServer(server.serverName()).isAlive())
+                .map(server -> server.playerLocations().length).toList();
+
+        if (!playerCounts.isEmpty()) {
+            int averagePlayerCount = playerCounts.stream().reduce(0, Integer::sum) / playerCounts.size();
+            int myPlayerCount = MultiLib.getLocalOnlinePlayers().size();
+            int difference = myPlayerCount - averagePlayerCount;
+            if (difference > 0) {
+                maxRecursion = difference / 10;
+            }
+        }
+
+        movePlayers(localPlayersToMove, 0, maxRecursion);
+    }
+
+    private void movePlayers(List<LocalPlayerLocation> localPlayersToMove, int recursion, int maxRecursion) {
         // Move the player that's closest to their newly assigned server
         double closestDistance = Double.MAX_VALUE;
         LocalPlayerLocation closestPlayer = null;
@@ -229,7 +275,7 @@ public class ServerAllocationSystem {
         // First find a server to send them to with less players than us
         for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
             Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-            if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && hasLessPlayers(localPlayerLocation.closestServer())) {
+            if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer()) && hasLessPlayers(localPlayerLocation.closestServer())) {
                 closestDistance = localPlayerLocation.closestDistance();
                 closestPlayer = localPlayerLocation;
                 closestBukkitPlayer = player;
@@ -240,7 +286,7 @@ public class ServerAllocationSystem {
         if (closestPlayer == null) {
             for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
                 Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-                if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player)) {
+                if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer())) {
                     closestDistance = localPlayerLocation.closestDistance();
                     closestPlayer = localPlayerLocation;
                     closestBukkitPlayer = player;
@@ -250,11 +296,20 @@ public class ServerAllocationSystem {
 
         if (closestBukkitPlayer != null) {
             closestBukkitPlayer.kick(Component.text("sendto:" + closestPlayer.closestServer()));
+
+            if (recursion < maxRecursion) {
+                movePlayers(localPlayersToMove, recursion + 1, maxRecursion);
+            }
         }
     }
 
     private boolean hasLessPlayers(String server) {
         return servers.get(server).playerLocations().length < MultiLib.getLocalOnlinePlayers().size() + 3; // Prefer to not send players to an overwhelmed server
+    }
+
+    private boolean isNotFucked(String server) {
+        return MultiPaper.getConnection().getOrCreateServer(server).isAlive() // Check the server is online
+                && servers.get(server).playerLocations().length < (MultiLib.getLocalOnlinePlayers().size() + 3) * 1.5; // Don't send players to servers with way too many players on them
     }
 
     private void handleUpdate(UpdatePacket updatePacket) {

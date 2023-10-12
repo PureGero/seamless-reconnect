@@ -8,9 +8,12 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import puregero.multipaper.MultiPaper;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -34,12 +37,15 @@ public class ServerAllocationSystem {
     private static final String CHANNEL = "kmeans:update";
     private static final String CHANNEL_UPDATE_RATE = "kmeans:set_update_rate";
     private static final String CHANNEL_CENTROID_METHOD = "kmeans:set_centroid_method";
+    private static final String CHANNEL_START = "kmeans:start";
+    private static final String CHANNEL_CPU = "kmeans:set_cpus";
 
     private final SeamlessReconnect plugin;
     final Map<String, UpdatePacket> servers = new ConcurrentHashMap<>();
     private int updateRate = 2 * 20;
     private BukkitTask updateTask = null;
     private CentroidMethod centroidMethod = CentroidMethod.DISTRIBUTED;
+    public Map<String, String> cpus = new HashMap<>();
 
     int centerX = (int) (Math.random() * 1000) - 500;
     int centerZ = (int) (Math.random() * 1000) - 500;
@@ -55,12 +61,35 @@ public class ServerAllocationSystem {
             }
         });
 
+        MultiLib.onString(plugin, CHANNEL_START, string -> {
+            Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    Process process = Runtime.getRuntime().exec("lscpu");
+                    try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                        reader.lines().filter(line -> line.startsWith("Model name:")).forEach(line -> {
+                            String model = line.substring(12).trim();
+                            MultiLib.notify(CHANNEL_CPU, MultiLib.getLocalServerName() + "\t" + model);
+                            cpus.put(MultiLib.getLocalServerName(), model);
+                        });
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+
+        MultiLib.onString(plugin, CHANNEL_CPU, string -> {
+            String[] split = string.split("\t");
+            cpus.put(split[0], split[1]);
+        });
+
         MultiLib.onString(plugin, CHANNEL_UPDATE_RATE, str -> handleSetUpdateRate(Integer.parseInt(str)));
         MultiLib.onString(plugin, CHANNEL_CENTROID_METHOD, this::handleSetCentroidMethod);
 
         this.plugin.getServer().getCommandMap().register("seamlessreconnect", new DebugCommand(this));
         this.plugin.getServer().getCommandMap().register("seamlessreconnect", new SetUpdateRate(this));
         this.plugin.getServer().getCommandMap().register("seamlessreconnect", new SetCentroidMethod(this));
+        this.plugin.getServer().getCommandMap().register("seamlessreconnect", new GetCpus(this));
 
         handleSetUpdateRate(updateRate);
 

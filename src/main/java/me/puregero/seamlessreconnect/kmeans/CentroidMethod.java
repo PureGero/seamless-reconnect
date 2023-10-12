@@ -25,6 +25,25 @@ public enum CentroidMethod {
             return new Centroid(x / count, z / count);
         }
     }),
+    DYNAMIC_LOCAL((playerLocations, servers, currentCentroid, index) -> {
+        int x = 0;
+        int z = 0;
+        int count = 0;
+
+        for (DistancePlayerLocation playerLocation : playerLocations) {
+            if (playerLocation instanceof LocalPlayerLocation) {
+                x += playerLocation.x();
+                z += playerLocation.z();
+                count += 1;
+            }
+        }
+
+        if (count == 0) {
+            return null;
+        } else {
+            return new Centroid(x / count, z / count);
+        }
+    }, null),
     RADIAL((playerLocations, servers, currentCentroid, index) -> {
         // The centroids are so close to the center as the most distant players are allocated to centroids first, and the closest are allocated after all the centroids have become full
         double angle = (double) index / servers.size() * Math.PI * 2;

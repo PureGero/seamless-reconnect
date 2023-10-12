@@ -44,7 +44,7 @@ public class ServerAllocationSystem {
     final Map<String, UpdatePacket> servers = new ConcurrentHashMap<>();
     private int updateRate = 2 * 20;
     private BukkitTask updateTask = null;
-    private CentroidMethod centroidMethod = CentroidMethod.DISTRIBUTED;
+    private CentroidMethod centroidMethod = CentroidMethod.DYNAMIC_LOCAL;
     public Map<String, String> cpus = new HashMap<>();
 
     int centerX = (int) (Math.random() * 1000) - 500;
@@ -82,6 +82,8 @@ public class ServerAllocationSystem {
             String[] split = string.split("\t");
             cpus.put(split[0], split[1]);
         });
+
+        MultiLib.notify(CHANNEL_START, MultiLib.getLocalServerName());
 
         MultiLib.onString(plugin, CHANNEL_UPDATE_RATE, str -> handleSetUpdateRate(Integer.parseInt(str)));
         MultiLib.onString(plugin, CHANNEL_CENTROID_METHOD, this::handleSetCentroidMethod);
@@ -161,6 +163,9 @@ public class ServerAllocationSystem {
 
                 for (UpdatePacket updatePacket : servers) {
                     double distance = Math.pow(player.x() - updatePacket.centerX(), 2) + Math.pow(player.z() - updatePacket.centerZ(), 2);
+                    if (player instanceof LocalPlayerLocation && updatePacket.serverName().equals(MultiLib.getLocalServerName())) {
+                        distance -= 8 * 8; // Prefer not to send our players to other servers
+                    }
                     if (distance < minDistance) {
                         minDistance = distance;
                         assignedServer = updatePacket.serverName();
@@ -232,6 +237,9 @@ public class ServerAllocationSystem {
             centerZ = centroid.z();
         }
 
+        // Update out centerX and centerZ
+        serverList.put(MultiLib.getLocalServerName(), new UpdatePacket(MultiLib.getLocalServerName(), new PlayerLocation[0], centerX, centerZ));
+
         assignPlayersToServers(playerLocations, serverList.values());
 
         Centroid centroid2 = centroidMethod.updateAfterAssignment(playerLocations, serverList.values(), new Centroid(centerX, centerZ), ourIndex);
@@ -295,6 +303,10 @@ public class ServerAllocationSystem {
         movePlayers(localPlayersToMove, 0, maxRecursion);
     }
 
+    private double calcDistanceFromUs(PlayerLocation playerLocation) {
+        return Math.pow(playerLocation.x() - centerX, 2) + Math.pow(playerLocation.z() - centerZ, 2);
+    }
+
     private void movePlayers(List<LocalPlayerLocation> localPlayersToMove, int recursion, int maxRecursion) {
         // Move the player that's closest to their newly assigned server
         double closestDistance = Double.MAX_VALUE;
@@ -304,8 +316,8 @@ public class ServerAllocationSystem {
         // First find a server to send them to with less players than us
         for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
             Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-            if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer()) && hasLessPlayers(localPlayerLocation.closestServer())) {
-                closestDistance = localPlayerLocation.closestDistance();
+            if (calcDistanceFromUs(localPlayerLocation) < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer()) && hasLessPlayers(localPlayerLocation.closestServer())) {
+                closestDistance = calcDistanceFromUs(localPlayerLocation);
                 closestPlayer = localPlayerLocation;
                 closestBukkitPlayer = player;
             }
@@ -315,13 +327,35 @@ public class ServerAllocationSystem {
         if (closestPlayer == null) {
             for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
                 Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
-                if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer())) {
-                    closestDistance = localPlayerLocation.closestDistance();
+                if (calcDistanceFromUs(localPlayerLocation) < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer())) {
+                    closestDistance = calcDistanceFromUs(localPlayerLocation);
                     closestPlayer = localPlayerLocation;
                     closestBukkitPlayer = player;
                 }
             }
         }
+
+        // First find a server to send them to with less players than us
+//        for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
+//            Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
+//            if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer()) && hasLessPlayers(localPlayerLocation.closestServer())) {
+//                closestDistance = localPlayerLocation.closestDistance();
+//                closestPlayer = localPlayerLocation;
+//                closestBukkitPlayer = player;
+//            }
+//        }
+//
+//        // Then try sending players to fuller servers
+//        if (closestPlayer == null) {
+//            for (LocalPlayerLocation localPlayerLocation : localPlayersToMove) {
+//                Player player = Bukkit.getPlayer(localPlayerLocation.uuid());
+//                if (localPlayerLocation.closestDistance() < closestDistance && player != null && MultiLib.isLocalPlayer(player) && isNotFucked(localPlayerLocation.closestServer())) {
+//                    closestDistance = localPlayerLocation.closestDistance();
+//                    closestPlayer = localPlayerLocation;
+//                    closestBukkitPlayer = player;
+//                }
+//            }
+//        }
 
         if (closestBukkitPlayer != null) {
             closestBukkitPlayer.kick(Component.text("sendto:" + closestPlayer.closestServer()));

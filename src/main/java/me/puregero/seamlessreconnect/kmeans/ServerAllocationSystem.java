@@ -255,8 +255,6 @@ public class ServerAllocationSystem {
             }
         }
 
-        plugin.getLogger().info("Center is " + centerX + ", " + centerZ);
-
         sendUpdate();
 
         Bukkit.getScheduler().runTask(plugin, () -> movePlayers(localPlayersToMove));

@@ -1,7 +1,9 @@
 package me.puregero.seamlessreconnect;
 
 import com.github.puregero.multilib.MultiLib;
+import me.puregero.seamlessreconnect.kmeans.DebugCommand;
 import me.puregero.seamlessreconnect.kmeans.ServerAllocationSystem;
+import me.puregero.seamlessreconnect.playerlimit.SetMaxPlayers;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashSet;
@@ -20,6 +22,8 @@ public class SeamlessReconnect extends JavaPlugin {
         if (Boolean.parseBoolean(System.getProperty("sr.enabled", "true"))) {
             new ServerAllocationSystem(this);
         }
+
+        new SetMaxPlayers(this);
 
         MultiLib.onString(this, "seamlessreconnect:reconnecting", message -> handleNotification("reconnecting", message));
     }

@@ -356,6 +356,11 @@ public class ServerAllocationSystem {
 //        }
 
         if (furthestBukkitPlayer != null) {
+            if (furthestDistance < 64 * 64) {
+                // Too close to our center point, no point moving them
+                return;
+            }
+
             furthestBukkitPlayer.kick(Component.text("sendto:" + furthestPlayer.closestServer()));
 
             if (recursion < maxRecursion) {

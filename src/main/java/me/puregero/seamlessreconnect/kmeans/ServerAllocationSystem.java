@@ -42,7 +42,7 @@ public class ServerAllocationSystem {
 
     private final SeamlessReconnect plugin;
     final Map<String, UpdatePacket> servers = new ConcurrentHashMap<>();
-    private int updateRate = 2 * 20;
+    private int updateRate = 5 * 20;
     private BukkitTask updateTask = null;
     private CentroidMethod centroidMethod = CentroidMethod.DYNAMIC_LOCAL;
     public Map<String, String> cpus = new HashMap<>();

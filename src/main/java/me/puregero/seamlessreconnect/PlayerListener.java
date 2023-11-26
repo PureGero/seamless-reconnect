@@ -48,7 +48,7 @@ public class PlayerListener implements Listener {
         if (message.startsWith("sendto:")) {
             player.sendActionBar(Component.text("Connecting to " + message.split("sendto:")[1] + "...").color(NamedTextColor.GRAY).decorate(TextDecoration.ITALIC));
             plugin.broadcast("reconnecting", player.getUniqueId() + "\t" + player.getEntityId());
-            PacketListener packetListener = ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get(PacketListener.class);
+//            PacketListener packetListener = ((CraftPlayer) player).getHandle().connection.connection.channel.pipeline().get(PacketListener.class);
         }
     }
 

@@ -55,6 +55,10 @@ public class ServerAllocationSystem {
 
         Bukkit.setMaxPlayers(1000); // All the players belong to us
 
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Bukkit.setMaxPlayers(1000); // All the players still belong to us
+        }, 60 * 20);
+
         MultiLib.on(plugin, CHANNEL, bytes -> {
             try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
                 handleUpdate((UpdatePacket) in.readObject());

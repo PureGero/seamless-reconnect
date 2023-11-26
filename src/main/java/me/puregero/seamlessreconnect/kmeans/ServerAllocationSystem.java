@@ -53,6 +53,8 @@ public class ServerAllocationSystem {
     public ServerAllocationSystem(SeamlessReconnect plugin) {
         this.plugin = plugin;
 
+        Bukkit.setMaxPlayers(1000); // All the players belong to us
+
         MultiLib.on(plugin, CHANNEL, bytes -> {
             try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes))) {
                 handleUpdate((UpdatePacket) in.readObject());

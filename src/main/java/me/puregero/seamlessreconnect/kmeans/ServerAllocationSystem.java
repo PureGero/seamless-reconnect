@@ -362,12 +362,16 @@ public class ServerAllocationSystem {
 //        }
 
         if (furthestBukkitPlayer != null) {
-            if (furthestDistance < 64 * 64) {
-                // Too close to our center point, no point moving them
-                return;
+            if (furthestDistance > 64 * 64 || hasSignificantlyLessPlayers(furthestPlayer.closestServer())) {
+                furthestBukkitPlayer.kick(Component.text("sendto:" + furthestPlayer.closestServer()));
+            } else {
+                recursion -= 1;
             }
 
-            furthestBukkitPlayer.kick(Component.text("sendto:" + furthestPlayer.closestServer()));
+            if (!localPlayersToMove.remove(furthestPlayer)) {
+                new Exception("Failed to remove furthestPlayer from localPlayersToMove. Exiting to prevent infinite loop").printStackTrace();
+                return;
+            }
 
             if (recursion < maxRecursion) {
                 movePlayers(localPlayersToMove, recursion + 1, maxRecursion);
@@ -377,6 +381,10 @@ public class ServerAllocationSystem {
 
     private boolean hasLessPlayers(String server) {
         return servers.get(server).playerLocations().length < MultiLib.getLocalOnlinePlayers().size() + 3; // Prefer to not send players to an overwhelmed server
+    }
+
+    private boolean hasSignificantlyLessPlayers(String server) {
+        return servers.get(server).playerLocations().length < MultiLib.getLocalOnlinePlayers().size() + 10;
     }
 
     private boolean isNotFucked(String server) {
